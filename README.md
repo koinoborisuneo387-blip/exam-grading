@@ -9,6 +9,7 @@
 >
 > **判分标准是「意思相近就给分」**，不要求学生写得和参考答案字面一致。
 
+- 代码仓：https://github.com/koinoborisuneo387-blip/exam-grading
 - 需求与设计的权威文档：[SPEC.md](SPEC.md)
 - 改代码前必读：[CLAUDE.md](CLAUDE.md)（与 [AGENTS.md](AGENTS.md) 内容一致）
 - 给老师的说明书：[使用说明.md](使用说明.md)
@@ -89,6 +90,10 @@ start.sh install.sh update.sh    老师端（Linux）交付脚本
 | `update.sh` | 有 git 就 `git pull`，没有就下 zip 覆盖。**`data/` 一个字节都不碰**，更新前自动备份旧代码 |
 
 `update.sh` 顶部的 `REPO_SLUG` 是代码仓地址，换仓库改那一行。
+
+**zip 更新路线已实测**（2026-07-29）：从 `codeload.github.com` 下载 → 解压 → 按覆盖清单替换，
+程序更新到新版本，`data/`（成绩库、答卷原图、`API_KEY.txt`）**逐字节未变**；
+三个 `.sh` 在仓库里都是 LF 换行、shebang 完好（CRLF 会让 Linux 报"找不到解释器"）。
 
 **Schema 变更**：只能往 `db.ADDED_COLUMNS` 里加列，`init()` 会在老师的旧库上自动
 `ALTER TABLE`。**不许改列型、不许删列** —— 那边库里是真实成绩。
