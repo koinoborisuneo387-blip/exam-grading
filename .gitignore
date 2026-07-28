@@ -1,0 +1,23 @@
+# 老师的真实数据：成绩、答卷原图、批注、API key —— 一个字节都不进仓
+data/
+
+# 密钥文件（正式位置在 data/ 下，这里挡的是放在根目录的那份备用位置）
+API_KEY.txt
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 临时
+tmp/
+*.log

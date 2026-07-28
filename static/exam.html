@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>考试设置 / 题卡 — 试卷批改系统</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <h2>考试信息</h2>
+    <div class="row">
+      <div class="field" style="flex:2 1 220px"><label>考试名称</label>
+        <input type="text" id="f-name"></div>
+      <div class="field"><label>班级</label><input type="text" id="f-klass"></div>
+      <div class="field"><label>科目</label><input type="text" id="f-subject"></div>
+      <div class="field"><label>考试日期</label><input type="date" id="f-date"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="field"><label>试卷满分</label>
+        <input type="number" id="f-full" min="0" step="1"></div>
+      <div class="field"><label>及格线</label>
+        <input type="number" id="f-pass" min="0" step="1"></div>
+      <div class="field"><label>优秀线</label>
+        <input type="number" id="f-good" min="0" step="1"></div>
+      <div class="field"><label>客观题满分（不用就填 0）</label>
+        <input type="number" id="f-obj" min="0" step="1"></div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-save">保存</button></div>
+    </div>
+    <p class="hint" style="margin:12px 0 0" id="sum-hint"></p>
+  </div>
+
+  <div class="panel">
+    <h2>题卡 —— 只登记要批的主观题</h2>
+    <p class="hint">选择题、判断题不用登记。参考答案填上以后，AI 批改会照着它判，
+      而且判分标准是<b>意思相近就给分</b>，不要求学生写得和参考答案一模一样。</p>
+    <div class="row" style="margin-bottom:12px">
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-add">加一道题</button></div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost" id="btn-batch">批量加题</button></div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost" id="btn-copy">从别的考试复制题卡</button></div>
+    </div>
+    <div id="qlist"><p class="empty">加载中…</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>标准答案卷（可选）</h2>
+    <p class="hint">上传参考答案的扫描件、照片或 PDF。批改时可以一键对照查看；
+      用 AI 批改时也会把它一起发给模型，判得更准。</p>
+    <div class="drop-zone" id="key-drop">
+      把标准答案文件拖到这里，或者
+      <label style="color:#1f6feb;cursor:pointer;text-decoration:underline">点这里选文件
+        <input type="file" id="key-file" multiple accept="image/*,.pdf" hidden>
+      </label>
+      <div style="font-size:12px;margin-top:6px">支持 JPG / PNG / PDF（PDF 需要是扫描件）</div>
+    </div>
+    <div id="key-list" class="thumb-grid"></div>
+  </div>
+
+  <div class="panel no-print">
+    <h2>下一步</h2>
+    <p class="hint">题卡建好后，去「学生与答卷」页导入学生名单和答卷图片。</p>
+    <a class="btn" id="btn-next">去导入学生和答卷 →</a>
+  </div>
+
+</div>
+<script src="js/common.js"></script>
+<script src="js/exam.js"></script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# 老师那边是 Linux（银河麒麟 / 统信 UOS）。
+# 这些文件必须是 LF 换行，带 CR 的话 shebang 会变成 "/bin/sh\r"，直接报 "找不到解释器"。
+*.sh        text eol=lf
+*.desktop   text eol=lf
+*.py        text eol=lf
+*.md        text eol=lf
+*.html      text eol=lf
+*.css       text eol=lf
+*.js        text eol=lf
+VERSION     text eol=lf
+
+# 开发机自用的批处理，保持 CRLF
+*.bat       text eol=crlf

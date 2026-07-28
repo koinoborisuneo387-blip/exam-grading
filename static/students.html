@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>学生与答卷 — 试卷批改系统</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <h2>学生名单</h2>
+    <p class="hint">一行一个学生。可以写「01 张三」，也可以只写「张三」。
+      从 Excel 里复制两列粘过来也认。</p>
+    <div class="row">
+      <div class="field" style="flex:2 1 320px">
+        <textarea id="roster" rows="4" placeholder="01 张三&#10;02 李四&#10;03 王五"></textarea>
+      </div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-roster">加入名单</button>
+      </div>
+    </div>
+    <div id="stulist" style="margin-top:14px"><p class="empty">加载中…</p></div>
+  </div>
+
+  <div class="panel">
+    <h2>导入答卷</h2>
+    <p class="hint">
+      两种用法：<b>① 一个学生一个学生传</b> —— 在上面名单里点该学生的「传答卷」；
+      <b>② 整班一起传</b> —— 在这里传（比如扫描仪扫出来的一个大 PDF），
+      系统会拆成一页一页，再由你分给每个学生。
+    </p>
+    <div class="drop-zone" id="drop">
+      把答卷文件拖到这里，或者
+      <label style="color:#1f6feb;cursor:pointer;text-decoration:underline">点这里选文件
+        <input type="file" id="file" multiple accept="image/*,.pdf" hidden>
+      </label>
+      <div style="font-size:12px;margin-top:6px">
+        支持 JPG / PNG / PDF。PDF 必须是<b>扫描件</b>（电脑直接生成的文字版 PDF 读不了，
+        会明确提示）。
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" id="stage-panel" hidden>
+    <h2>把页面分给学生</h2>
+    <p class="hint">下面是刚导进来还没分配的页面。先点选几页，再选学生，点「绑定」。
+      如果每人页数一样，直接用右边的自动分配更快。</p>
+    <div class="row" style="margin-bottom:10px">
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost small" id="btn-sel-all">全选</button>
+        <button class="btn ghost small" id="btn-sel-none">全不选</button>
+      </div>
+      <div class="field" style="flex:1 1 180px">
+        <label>绑给哪个学生</label><select id="bind-student"></select>
+      </div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-bind">绑定选中的页</button>
+      </div>
+      <div class="field" style="flex:0 0 auto;border-left:1px solid #dde3ea;padding-left:12px">
+        <label>每人几页</label>
+        <input type="number" id="per-student" value="2" min="1" max="20" style="width:80px">
+      </div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost" id="btn-auto">按顺序自动分配</button>
+      </div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost danger" id="btn-clear">清空暂存区</button>
+      </div>
+    </div>
+    <div id="stage" class="thumb-grid"></div>
+  </div>
+
+  <div class="panel">
+    <h2>AI 预批全班</h2>
+    <p class="hint">
+      把「标准答案卷」和每个学生的答卷一起发给智谱 GLM-4V，让它先把所有主观题批一遍，
+      给出建议分和评语。<b>建议分不会直接记成成绩</b> ——
+      你到批改台逐题看一眼，点「采纳」才算数。<br>
+      一个学生一次调用，45 个人大概几分钟。中途可以停。
+    </p>
+    <div class="row">
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-batch-ai">🤖 AI 预批全班</button></div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost" id="btn-batch-stop" hidden>停止</button></div>
+      <div class="field" style="flex:1 1 240px">
+        <div id="batch-progress" style="font-size:13px;color:#6b7785"></div></div>
+    </div>
+    <div id="batch-log" style="margin-top:10px;font-size:13px;max-height:220px;
+      overflow:auto"></div>
+  </div>
+
+  <div class="panel no-print">
+    <h2>下一步</h2>
+    <a class="btn" id="btn-next">开始批改 →</a>
+  </div>
+
+</div>
+<script src="js/common.js"></script>
+<script src="js/students.js"></script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>试卷批改系统</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <h2>新建一场考试</h2>
+    <p class="hint">本系统只批主观题（解答、简答、计算、作文）。选择题判断题另外处理，
+      想在成绩表里算总分，把「客观题满分」填上、批改时录一个合计分就行。</p>
+    <div class="row">
+      <div class="field" style="flex:2 1 220px">
+        <label>考试名称 <span style="color:#dc2626">*</span></label>
+        <input type="text" id="f-name" placeholder="例如：高二上期中考试">
+      </div>
+      <div class="field"><label>班级</label>
+        <input type="text" id="f-klass" placeholder="高二3班"></div>
+      <div class="field"><label>科目</label>
+        <input type="text" id="f-subject" placeholder="语文"></div>
+      <div class="field"><label>考试日期</label>
+        <input type="date" id="f-date"></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="field"><label>试卷满分</label>
+        <input type="number" id="f-full" value="150" min="0" step="1"></div>
+      <div class="field"><label>及格线</label>
+        <input type="number" id="f-pass" value="90" min="0" step="1"></div>
+      <div class="field"><label>优秀线</label>
+        <input type="number" id="f-good" value="120" min="0" step="1"></div>
+      <div class="field">
+        <label>客观题满分（不用就填 0）</label>
+        <input type="number" id="f-obj" value="0" min="0" step="1">
+      </div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-create">建 立</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>已有的考试</h2>
+    <div id="list"><p class="empty">加载中…</p></div>
+  </div>
+
+</div>
+<script src="js/common.js"></script>
+<script src="js/index.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>批改台 — 试卷批改系统</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="grade-layout">
+
+  <div class="paper-pane">
+    <div class="paper-toolbar">
+      <button data-tool="pen" class="on" title="自由画线">✏ 画笔</button>
+      <button data-tool="check" title="点一下盖个红勾">✓ 勾</button>
+      <button data-tool="cross" title="点一下盖个红叉">✗ 叉</button>
+      <button data-tool="circle" title="按住拖出一个圈">◯ 圈</button>
+      <button data-tool="text" title="点一下写字">A 文字</button>
+      <button data-tool="erase" title="点笔迹删掉它">⌫ 擦</button>
+      <span class="sep"></span>
+      <button id="btn-undo" title="Ctrl+Z">撤销</button>
+      <button id="btn-clear-ink">清空本页</button>
+      <span class="sep"></span>
+      <button id="btn-zoom-out">－</button>
+      <span id="zoom-label" style="min-width:46px;text-align:center">100%</span>
+      <button id="btn-zoom-in">＋</button>
+      <button id="btn-zoom-fit">适应宽度</button>
+      <button id="btn-rotate">旋转</button>
+      <span class="sep"></span>
+      <button id="btn-key" title="对照标准答案">标准答案</button>
+      <span class="grow"></span>
+      <span id="page-info" style="opacity:.8"></span>
+    </div>
+    <div class="paper-scroll" id="paper-scroll">
+      <div id="pages"></div>
+    </div>
+  </div>
+
+  <div class="score-pane">
+    <div class="score-head">
+      <div>
+        <span class="stu-name" id="stu-name">—</span>
+        <span class="stu-meta" id="stu-meta"></span>
+      </div>
+      <div id="obj-row" style="margin-top:8px" hidden>
+        <label style="font-size:13px;color:#6b7785">客观题得分（选择判断，你已经改好的那部分）</label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" id="obj-score" step="0.5" min="0" style="width:100px">
+          <span id="obj-full" style="color:#6b7785"></span>
+        </div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px">
+        <button class="btn small" id="btn-ai-whole" title="把标准答案和这份卷子一起发给 AI，一次批完所有主观题">
+          🤖 AI 预批整卷</button>
+        <button class="btn small ghost" id="btn-save-marked" title="把画好的红笔批注合成图片存下来，之后可以打包导出给学生">
+          存批注图</button>
+      </div>
+      <div id="ai-note" class="hint" style="margin:6px 0 0;font-size:12px"></div>
+    </div>
+
+    <div class="score-list" id="qlist"></div>
+
+    <div class="score-foot">
+      <div class="total-line">
+        <span>总分</span>
+        <span class="big" id="total">0</span>
+        <span id="full-label" style="color:#6b7785"></span>
+        <span id="progress" style="margin-left:auto;color:#6b7785;font-size:13px"></span>
+      </div>
+      <div style="margin-top:8px">
+        <label style="font-size:13px;color:#6b7785">整卷评语（可选）</label>
+        <textarea id="paper-comment" rows="2" placeholder="给这个学生的总评"></textarea>
+      </div>
+      <div class="nav-row">
+        <button class="btn ghost" id="btn-prev">← 上一个</button>
+        <button class="btn" id="btn-next">下一个 →</button>
+      </div>
+      <div class="kbd-help">
+        <kbd>数字</kbd> 输分　<kbd>Enter</kbd> 下一题　<kbd>空格</kbd> 满分　<kbd>0</kbd> 零分<br>
+        <kbd>←</kbd><kbd>→</kbd> 换学生　<kbd>Ctrl</kbd>+<kbd>Z</kbd> 撤销笔迹　<kbd>1</kbd>~<kbd>6</kbd> 换批注工具（不在输入框时）
+      </div>
+    </div>
+  </div>
+
+</div>
+<script src="js/common.js"></script>
+<script src="js/grade.js"></script>
+</body>
+</html>

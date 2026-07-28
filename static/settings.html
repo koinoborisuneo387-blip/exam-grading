@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 设置 — 试卷批改系统</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel">
+    <h2>AI 辅助批改</h2>
+    <p class="hint">
+      不配这个也能用 —— 所有打分、批注、统计、导出功能都不依赖 AI。
+      配上之后，AI 可以对着卷子给出<b>建议分和评语草稿</b>；
+      <b>分数只有你点了「采纳」才会记进成绩</b>，系统不会自己落分。
+    </p>
+
+    <div class="panel" id="key-status" style="margin:0 0 16px;box-shadow:none">
+      <b>API Key 放这里就行 ——</b>
+      <div style="margin:6px 0">
+        <code id="key-path" style="background:#f1f5f9;padding:4px 8px;border-radius:4px;
+          display:inline-block;word-break:break-all"></code>
+      </div>
+      <div id="key-hint" style="font-size:13px"></div>
+      <div class="hint" style="margin-top:8px">
+        用记事本打开这个文件，把智谱的 API Key 粘进去（不要带 # 号那几行），保存，
+        刷新本页面即可。填了 Key 就自动启用 AI，不用再点开关。
+        这个文件在 <code>data</code> 文件夹里，<b>更新程序不会覆盖它</b>。
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="field" style="flex:0 0 auto">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="f-enabled" style="width:auto"> 打开 AI 辅助批改
+        </label>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <div class="field" style="flex:1 1 100%">
+        <label>用哪家的模型（选一个自动填好地址）</label>
+        <select id="f-preset"></select>
+        <div class="hint" id="preset-note" style="margin:6px 0 0"></div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <div class="field" style="flex:2 1 300px">
+        <label>接口地址 base_url</label>
+        <input type="text" id="f-base" placeholder="https://open.bigmodel.cn/api/paas/v4">
+      </div>
+      <div class="field">
+        <label>模型名</label>
+        <input type="text" id="f-model" list="model-list" placeholder="glm-4v-plus">
+        <datalist id="model-list"></datalist>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <div class="field" style="flex:2 1 300px">
+        <label>API Key（也可以在这里填；已经用 API_KEY.txt 填过就不用管这栏）</label>
+        <input type="password" id="f-key" placeholder="没填过就是空的；填了会显示成 ●●●">
+      </div>
+      <div class="field">
+        <label>超时（秒）</label>
+        <input type="number" id="f-timeout" min="10" max="600" step="10">
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <div class="field" style="flex:1 1 100%">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" id="f-vision" style="width:auto">
+          这个模型能看图片（可以直接对着扫描的卷子批）
+        </label>
+        <div class="hint" style="margin-top:4px">
+          智谱 GLM-4V、通义千问 qwen-vl 这类多模态模型要<b>勾上</b>；
+          DeepSeek 的 deepseek-chat 是纯文字模型，<b>不要勾</b> ——
+          不勾的话，每道题需要你把学生写的内容打进输入框，AI 才能批。
+        </div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:16px">
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-save">保存设置</button></div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost" id="btn-test">测试连接</button></div>
+      <div class="field" style="flex:1 1 200px">
+        <div id="test-result" style="font-size:13px"></div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>怎么拿到 API Key</h2>
+    <ol style="margin:0;padding-left:22px;color:#3e4c59">
+      <li>打开 <b id="apply-url">智谱开放平台</b>，注册并实名。</li>
+      <li>在控制台里创建一个 API Key，复制出来。</li>
+      <li>用记事本打开本页最上面写的那个 <code>API_KEY.txt</code>，
+        把 Key 粘到最下面空的那一行，<b>保存</b>。带 # 号的几行是说明，不用动。</li>
+      <li>刷新本页，看到绿色的「已读到密钥」，再点一下「测试连接」。</li>
+      <li>显示「连接正常」就成了，回到批改台就能用 AI 了。</li>
+    </ol>
+    <p class="hint" style="margin-top:12px">
+      按量计费，批一道题几厘钱到几分钱。如果这台电脑上不了外网（单位内网管控），
+      测试连接会失败，那就把 AI 关掉，其它功能照常用。
+    </p>
+  </div>
+
+  <div class="panel">
+    <h2>关于这个系统</h2>
+    <table>
+      <tr><th style="width:130px">版本</th><td id="i-version">—</td></tr>
+      <tr><th>数据存放</th><td>程序目录下的 <code>data</code> 文件夹（成绩、答卷图、批注都在里面）</td></tr>
+      <tr><th>更新方式</th><td>双击桌面上的「更新试卷批改系统」，更新只换程序，
+        <b>不动 data 文件夹</b></td></tr>
+      <tr><th>出问题怎么办</th><td>把黑色命令行窗口里的报错内容截图发给开发者</td></tr>
+    </table>
+  </div>
+
+</div>
+<script src="js/common.js"></script>
+<script src="js/settings.js"></script>
+</body>
+</html>

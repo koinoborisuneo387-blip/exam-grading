@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>成绩分析 — 试卷批改系统</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap wide">
+
+  <div class="panel no-print">
+    <h2>导出</h2>
+    <div class="row">
+      <div class="field" style="flex:0 0 auto">
+        <a class="btn" id="dl-xlsx">下载成绩表（Excel）</a></div>
+      <div class="field" style="flex:0 0 auto">
+        <a class="btn ghost" id="dl-csv">下载成绩表（CSV）</a></div>
+      <div class="field" style="flex:0 0 auto">
+        <a class="btn ghost" id="dl-wrong">下载错题清单</a></div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn ghost" onclick="window.print()">打印 / 存成 PDF</button></div>
+    </div>
+    <p class="hint" style="margin:10px 0 0">
+      Excel 文件 WPS 和 LibreOffice 都能直接打开。想存 PDF 就点「打印」，
+      在打印窗口里把打印机选成「另存为 PDF」。</p>
+  </div>
+
+  <div class="panel">
+    <h2 id="title">班级情况</h2>
+    <div class="stat-grid" id="stats"></div>
+    <div style="margin-top:18px">
+      <b>分数段分布</b>
+      <div class="hist" id="hist"></div>
+      <div class="hist-labels" id="hist-labels"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>最该讲评的题</h2>
+    <p class="hint">按得分率从低到高排。只统计已经批完的答卷。</p>
+    <div id="qstats"></div>
+  </div>
+
+  <div class="panel">
+    <h2>知识点掌握情况</h2>
+    <div id="kstats"></div>
+  </div>
+
+  <div class="panel">
+    <h2>成绩总表</h2>
+    <div id="table"></div>
+  </div>
+
+</div>
+<script src="js/common.js"></script>
+<script src="js/report.js"></script>
+</body>
+</html>
