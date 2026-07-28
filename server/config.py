@@ -19,30 +19,37 @@ DEFAULT_PORT = int(os.environ.get("PJPG_PORT") or 8899)
 
 _lock = threading.Lock()
 
-# 默认用智谱 GLM-4V（2026-07-28 用户指定）：国内直连、OpenAI 兼容、**能看卷子图**。
+# 默认用智谱 GLM-5V（2026-07-29 用户说实际用的是 glm-5v-turbo）：
+# 国内直连、OpenAI 兼容、**能看卷子图**，实测能准确读出卷面上的手写答案。
 # vision=True 表示这个模型能读图片，可以直接对着扫描的答卷批改。
 # 纯文本模型（比如 DeepSeek 的 deepseek-chat）看不了图，只能批老师粘贴进去的文字。
+#
+# ⚠️ glm-5v-turbo 是**思考型**模型，返回里除了 content 还有 reasoning_content，
+#    光推理就要烧一百多个 token。**绝对不要给它设 max_tokens** ——
+#    设小了推理会把额度吃光，content 直接是空字符串（踩过这个坑）。
+#    也因为要思考，它比普通模型慢，超时默认给到 180 秒。
 DEFAULT_AI = {
     "enabled": False,
     "base_url": "https://open.bigmodel.cn/api/paas/v4",
     "api_key": "",
-    "model": "glm-4v-plus",
+    "model": "glm-5v-turbo",
     "vision": True,
-    "timeout": 90,
+    "timeout": 180,
 }
 
 # 设置页的「一键填入」预设。老师不用记这些地址。
 # 模型名以各家控制台上实际列出的为准，这里只是常用值。
 AI_PRESETS = [
     {
-        "key": "glm-4v",
-        "label": "智谱 GLM-4V（能看卷子图，当前使用）",
+        "key": "glm-5v",
+        "label": "智谱 GLM-5V（能看卷子图，当前使用）",
         "base_url": "https://open.bigmodel.cn/api/paas/v4",
-        "model": "glm-4v-plus",
+        "model": "glm-5v-turbo",
         "vision": True,
         "apply_url": "https://open.bigmodel.cn",
-        "models": ["glm-4v-plus", "glm-4v", "glm-4v-flash"],
-        "note": "在智谱开放平台申请 API Key。glm-4v-flash 更便宜，卷面清晰时够用。",
+        "models": ["glm-5v-turbo", "glm-4v-plus", "glm-4v-flash"],
+        "note": "在智谱开放平台申请 API Key。glm-5v-turbo 会先思考再作答，"
+                "批得准但慢一些；卷面很清晰、想省钱可以试 glm-4v-plus。",
     },
     {
         "key": "qwen-vl",
@@ -52,7 +59,7 @@ AI_PRESETS = [
         "vision": True,
         "apply_url": "https://bailian.console.aliyun.com",
         "models": ["qwen-vl-max", "qwen-vl-plus"],
-        "note": "阿里云百炼平台申请。GLM-4V 连不上时可以换这个试试。",
+        "note": "阿里云百炼平台申请。智谱连不上时可以换这个试试。",
     },
     {
         "key": "deepseek",
@@ -91,7 +98,7 @@ def config_path() -> Path:
 # 为了好找，程序根目录下的同名文件也认（但更新时要自己留意别被覆盖）。
 KEY_FILE_NAME = "API_KEY.txt"
 
-KEY_FILE_TEMPLATE = """# 智谱 GLM-4V 的 API Key 放在这个文件里
+KEY_FILE_TEMPLATE = """# 智谱 GLM-5V 的 API Key 放在这个文件里
 #
 # 用法：把从 https://open.bigmodel.cn 申请到的 API Key，
 #       整行粘到下面这一行的位置，保存，然后重启程序（或者在网页里刷新一下）。
@@ -202,9 +209,9 @@ def save_config(cfg: dict) -> dict:
         ai["api_key"] = str(ai.get("api_key") or "").strip()
         ai["model"] = str(ai.get("model") or "").strip()
         try:
-            ai["timeout"] = max(5, min(600, int(ai.get("timeout") or 90)))
+            ai["timeout"] = max(5, min(600, int(ai.get("timeout") or DEFAULT_AI["timeout"])))
         except (TypeError, ValueError):
-            ai["timeout"] = 90
+            ai["timeout"] = DEFAULT_AI["timeout"]
         # 密钥来自 API_KEY.txt 时，不要再往 config.json 里抄一份 —— 一个密钥只存一个地方
         persist = dict(ai)
         if file_key and persist.get("api_key") == file_key:

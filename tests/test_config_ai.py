@@ -45,7 +45,7 @@ class TestKeyFile(TempDataCase):
     def test_密钥不会被抄进config_json(self):
         # 一个密钥只存一个地方，免得改了文件还留着旧的
         self._write_key("real-key")
-        config.save_config({"ai": {"model": "glm-4v-plus"}})
+        config.save_config({"ai": {"model": "glm-5v-turbo"}})
         raw = json.loads(config.config_path().read_text(encoding="utf-8"))
         self.assertEqual(raw["ai"]["api_key"], "")
         self.assertEqual(config.load_config()["ai"]["api_key"], "real-key")
@@ -56,10 +56,13 @@ class TestKeyFile(TempDataCase):
         self.assertNotIn("super-secret", pub)
         self.assertTrue(config.public_config()["ai"]["has_key"])
 
-    def test_默认预置的是能看图的GLM4V(self):
+    def test_默认预置的是能看图的智谱视觉模型(self):
         cfg = config.load_config()
         self.assertIn("bigmodel.cn", cfg["ai"]["base_url"])
+        self.assertEqual(cfg["ai"]["model"], "glm-5v-turbo")
         self.assertTrue(cfg["ai"]["vision"])
+        # 思考型模型要留足时间，太短会在整卷批改时超时
+        self.assertGreaterEqual(cfg["ai"]["timeout"], 120)
 
     def test_模板文件带中文说明(self):
         path = config.ensure_key_file()
@@ -106,6 +109,58 @@ class TestAIImages(unittest.TestCase):
         self.assertIsInstance(content, list)
         self.assertEqual(content[0]["type"], "text")
         self.assertEqual(content[1]["type"], "image_url")
+
+
+class TestNoMaxTokens(TempDataCase):
+    """glm-5v-turbo 是思考型模型，先烧一百多 token 推理再出话。
+
+    只要给它设了 max_tokens，额度就会被推理吃光、content 变成空字符串。
+    所以**任何一处请求都不许带 max_tokens** —— 这条用真接口踩出来过，必须钉死。
+    """
+
+    def setUp(self):
+        TempDataCase.setUp(self)
+        config.save_config({"ai": {"enabled": True, "api_key": "k", "vision": True,
+                                   "base_url": "https://x/v1", "model": "glm-5v-turbo"}})
+        self.sent = []
+        self._real_post = ai._post
+
+        def fake_post(url, payload, key, timeout):
+            self.sent.append(payload)
+            return {"choices": [{"message": {"content": json.dumps(
+                {"score": 8, "comment": "还行", "reasons": ["要点一到位"],
+                 "items": [{"question_id": 1, "score": 8, "comment": "还行",
+                            "reasons": ["要点一到位"]}]}, ensure_ascii=False)}}]}
+        ai._post = fake_post
+
+    def tearDown(self):
+        ai._post = self._real_post
+        TempDataCase.tearDown(self)
+
+    def _assert_clean(self):
+        self.assertTrue(self.sent)
+        for payload in self.sent:
+            self.assertNotIn("max_tokens", payload)
+
+    def test_单题批改不带max_tokens(self):
+        ai.suggest({"id": 1, "max_score": 12, "no_label": "三、1"}, "学生的答案")
+        self._assert_clean()
+
+    def test_整卷批改不带max_tokens(self):
+        ai.grade_paper([{"id": 1, "max_score": 12, "no_label": "三、1"}],
+                       ["data:image/png;base64,AAAA"])
+        self._assert_clean()
+
+    def test_测试连接不带max_tokens(self):
+        ai.test_connection()
+        self._assert_clean()
+
+    def test_思考型模型只有推理内容时也算连通(self):
+        ai._post = lambda *a: {"choices": [{"message": {
+            "content": "", "reasoning_content": "我在想怎么回答"}}]}
+        r = ai.test_connection()
+        self.assertTrue(r["ok"])
+        self.assertTrue(r["reply"])
 
 
 class TestAIGuards(TempDataCase):

@@ -2,7 +2,7 @@
 
 给一位老师用的**单机版电子试卷批改工具**。导入学生答卷（扫描件/照片/PDF），
 在屏幕上逐题打分、用红笔在卷面上圈画写评语，自动算总分、出班级分析、导成绩表，
-批注过的卷子可以导出发回给学生。可选接入智谱 GLM-4V，让 AI 对着卷子先批一遍。
+批注过的卷子可以导出发回给学生。可选接入智谱 GLM-5V，让 AI 对着卷子先批一遍。
 
 > **只批主观题。** 选择题、判断题不进这个系统 —— 老师在系统外已经改好了。
 > 想在成绩表里算总分，填一个「客观题得分」合计分即可。
@@ -71,7 +71,7 @@ server/
   pdfimg.py            从扫描 PDF 抠图（手写 PDF 解析）
   imgutil.py           PNG 编码、图片尺寸、类型嗅探
   xlsx.py              手写 xlsx / CSV 导出
-  ai.py                智谱 GLM-4V 等 OpenAI 兼容接口
+  ai.py                智谱 GLM-5V 等 OpenAI 兼容接口
   multipart.py         文件上传解析
   api.py               路由与处理
   httpd.py             HTTP 服务与静态文件
@@ -95,8 +95,15 @@ start.sh install.sh update.sh    老师端（Linux）交付脚本
 
 ## AI 接入
 
-默认预置**智谱 GLM-4V**（`glm-4v-plus`），走 OpenAI 兼容的 `/chat/completions`。
+默认预置**智谱 GLM-5V**（`glm-5v-turbo`），走 OpenAI 兼容的 `/chat/completions`。
 选它是因为它**能看图**，可以直接对着扫描的答卷批改。
+
+已用真接口验过：2 页答卷 + 1 页标准答案整卷批改，**耗时约 23 秒**，能准确认出卷面手写字，
+学生措辞和参考答案不同也照样给分（"意思相近即得分"的提示词生效）。
+
+⚠️ `glm-5v-turbo` 是**思考型**模型，返回里除了 `content` 还有 `reasoning_content`，
+光推理就要烧一百多个 token。**不要给它设 `max_tokens`** —— 设小了推理会把额度吃光，
+`content` 直接是空字符串。也因为要思考，它比普通模型慢，超时默认 180 秒。
 
 - 老师只需把 API Key 粘进 `data/API_KEY.txt` 保存 —— 读到 key 就自动启用，不用点开关
 - 换通义千问 VL / DeepSeek 只改设置页配置，不改代码（预设见 `config.AI_PRESETS`）

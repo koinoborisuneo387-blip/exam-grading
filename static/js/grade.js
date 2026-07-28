@@ -469,7 +469,7 @@ function collectKeyImages() {
 
 function aiPreflight() {
   if (!data.ai_ready) {
-    toast('AI 还没配好。点右上角「AI 设置」，填上智谱 GLM-4V 的 API Key 并打开开关。', 'warn', 8000);
+    toast('AI 还没配好。点右上角「AI 设置」，填上智谱 GLM-5V 的 API Key 并打开开关。', 'warn', 8000);
     return false;
   }
   return true;
@@ -481,7 +481,7 @@ function askAI(q, card) {
   var answer = card._answerBox ? card._answerBox.value : '';
   if (!data.ai_vision && !answer.trim()) {
     toast('当前模型看不了卷子图。请先在这道题的「学生作答文字」里粘上学生写的内容。\n' +
-      '想让 AI 直接看卷子，到「AI 设置」换成 GLM-4V 这类能看图的模型。', 'warn', 9000);
+      '想让 AI 直接看卷子，到「AI 设置」换成 GLM-5V 这类能看图的模型。', 'warn', 9000);
     return;
   }
   if (btn) { btn.disabled = true; btn.textContent = 'AI 批改中…'; }
@@ -510,7 +510,7 @@ function askAI(q, card) {
 $('#btn-ai-whole').addEventListener('click', function () {
   if (!aiPreflight()) return;
   if (!data.ai_vision) {
-    toast('整卷预批需要能看图的模型。到「AI 设置」换成智谱 GLM-4V 或通义千问 qwen-vl-max。',
+    toast('整卷预批需要能看图的模型。到「AI 设置」换成智谱 GLM-5V 或通义千问 qwen-vl-max。',
       'warn', 9000);
     return;
   }
@@ -650,7 +650,7 @@ function updateHead() {
     $('#obj-full').textContent = '/ ' + fmt(objFull);
   }
   var note = '';
-  if (!data.ai_ready) note = 'AI 未配置：点右上角「AI 设置」填 GLM-4V 的 Key。';
+  if (!data.ai_ready) note = 'AI 未配置：点右上角「AI 设置」填 GLM-5V 的 Key。';
   else if (!data.ai_vision) note = '当前模型看不了卷子图，AI 只能批你粘贴的文字。';
   else if (!(data.answer_pages || []).length) note = '还没传标准答案卷，AI 只按题卡里的参考答案判。';
   $('#ai-note').textContent = note;

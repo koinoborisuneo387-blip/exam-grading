@@ -204,7 +204,7 @@ def suggest(question: dict, student_answer: str, images=None, key_images=None) -
         raise AIError("当前用的模型看不了卷子图片。请把学生写的内容打进（或粘贴进）"
                       "输入框，AI 才能批。\n"
                       "想让 AI 直接看着卷子批，到「设置」页换成通义千问 qwen-vl-max "
-                      "或智谱 GLM-4V 这类能看图的模型。")
+                      "或智谱 GLM-5V 这类能看图的模型。")
 
     max_score = to_float(question.get("max_score"), 0)
     stem = (question.get("stem") or "").strip() or "（老师没有录入题干）"
@@ -302,7 +302,7 @@ def grade_paper(questions, student_images, key_images=None) -> dict:
     ai = _require_config()
     if not ai.get("vision"):
         raise AIError("当前用的模型看不了卷子图片，没法整卷预批。\n"
-                      "到「设置」页换成智谱 GLM-4V 或通义千问 qwen-vl-max 这类能看图的模型，"
+                      "到「设置」页换成智谱 GLM-5V 或通义千问 qwen-vl-max 这类能看图的模型，"
                       "或者逐题手动录入学生作答后再用 AI。")
     pics = _clean_images(student_images)
     if not pics:
@@ -394,20 +394,27 @@ def grade_paper(questions, student_images, key_images=None) -> dict:
 
 
 def test_connection() -> dict:
-    """设置页的「测试连接」按钮。发一个极短的请求，验证地址/密钥/模型三件事。"""
+    """设置页的「测试连接」按钮。发一个很短的请求，验证地址/密钥/模型三件事。
+
+    **不要在这里设 max_tokens。** glm-5v-turbo 这类思考型模型会先花一百多个 token 推理，
+    额度设小了 content 直接是空字符串，界面上就变成「连上了但没回话」，让人以为坏了。
+    """
     ai = config.load_config()["ai"]
     if not (ai.get("base_url") and ai.get("api_key") and ai.get("model")):
         raise AIError("请先把接口地址、密钥、模型名都填上。")
     payload = {
         "model": ai["model"],
         "temperature": 0,
-        "max_tokens": 8,
         "messages": [{"role": "user", "content": "回复两个字：正常"}],
     }
     url = ai["base_url"].rstrip("/") + "/chat/completions"
-    data = _post(url, payload, ai["api_key"], min(30, int(ai.get("timeout") or 60)))
+    data = _post(url, payload, ai["api_key"], min(120, int(ai.get("timeout") or 90)))
     try:
-        reply = data["choices"][0]["message"]["content"]
-    except (KeyError, IndexError, TypeError):
+        message = data["choices"][0]["message"]
+        reply = message.get("content") or ""
+        if not str(reply).strip():
+            # 思考型模型偶尔把话全说在推理里，拿它兜个底，至少证明接口是通的
+            reply = str(message.get("reasoning_content") or "").strip()[:50] or "（无文字回复）"
+    except (KeyError, IndexError, TypeError, AttributeError):
         raise AIError("接口通了，但返回格式不是 OpenAI 兼容的，没法用来批改。")
     return {"ok": True, "reply": str(reply).strip()[:50], "model": ai["model"]}

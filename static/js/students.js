@@ -240,7 +240,7 @@ function runBatchAI() {
     return;
   }
   confirmBox('AI 预批全班',
-    '会对 ' + targets.length + ' 个已经导入答卷的学生，各调用一次智谱 GLM-4V。\n' +
+    '会对 ' + targets.length + ' 个已经导入答卷的学生，各调用一次智谱 GLM-5V。\n' +
     '按量计费，一个学生几分到一毛钱不等。\n\n' +
     'AI 给的只是建议分，需要你到批改台逐题「采纳」才会记进成绩。\n' +
     '中途想停随时点「停止」。', { okText: '开始' })
