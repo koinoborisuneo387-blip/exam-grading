@@ -28,14 +28,21 @@
 
 ## 1. 第二铁律：语法基线
 
+老师那台机器 2026-07-29 已确认是 **统信 UOS Desktop 20 Pro**（代号 eagle，
+基于 Debian 10），自带 **Python 3.7.3**，**git 2.20.1 已装**。
+
 | | 基线 | 禁用 |
 |---|---|---|
-| Python | **3.7** | 海象 `:=`(3.8)、`f"{x=}"`(3.8)、`dict\|dict`(3.9)、内建泛型 `list[str]`(3.9)、`str.removeprefix`(3.9)、`match`(3.10)、`functools.cache`(3.9)、`zoneinfo`(3.9) |
-| JavaScript | **ES2017** | 可选链 `?.`、空值合并 `??`、`Array.flat`、顶层 `await`、私有字段 `#x`、`structuredClone` |
+| Python | **3.7** | 海象 `:=`(3.8)、`f"{x=}"`(3.8)、`dict\|dict`(3.9)、内建泛型 `list[str]`(3.9)、`str.removeprefix`(3.9)、`match`(3.10)、`functools.cache`(3.9)、`zoneinfo`(3.9)、`copytree(dirs_exist_ok=)`(3.8) |
+| JavaScript | **ES2017** | 可选链 `?.`、空值合并 `??`、对象展开 `{...x}`(ES2018)、`Array.flat`、`replaceAll`、顶层 `await`、私有字段 `#x`、`structuredClone` |
 | CSS | 保守 | `:has()`、容器查询、`aspect-ratio`、嵌套语法 |
 
-开发机是 Python 3.12，**语法能跑不代表老师机器能跑**。写完自查一遍上表。
+开发机是 Python 3.12，**语法能跑不代表老师机器能跑**。
 类型标注要用就写 `from __future__ import annotations` + `typing.List` 这类旧写法。
+
+**这条不用靠自觉**：`tests/test_baseline.py` 会用 `ast.parse(feature_version=(3,7))`
+真按 3.7 的规则解析全部产品代码，并扫掉新版标准库 API、新 JS 语法、页面外链、
+以及任何第三方 import。**跑一次 `python -m unittest discover -s tests -t tests` 就知道有没有越线。**
 
 ## 2. 数据安全铁律
 

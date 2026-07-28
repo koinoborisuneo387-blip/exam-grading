@@ -29,16 +29,31 @@
 
 ## 2. 运行环境（最关键的约束）
 
-老师的机器是 **华为擎云 L540-031**，装的是 **银河麒麟桌面操作系统 V10 或统信 UOS V20**，
-**大概率是 ARM64（aarch64）架构**。这条决定了整个技术选型：
+老师的机器是 **华为擎云 L540-031**。**2026-07-29 已在那台机器上实际确认**：
+
+```
+$ cat /etc/os-release      →  PRETTY_NAME="UOS Desktop 20 Pro"
+                              ID=uos  VERSION_ID="20"  VERSION_CODENAME=eagle
+$ git --version            →  git version 2.20.1
+```
+
+- **系统：统信 UOS Desktop 20 Pro（代号 eagle，基于 Debian 10 "buster"）**
+- **git 已装（2.20.1）** → 交付和更新都可以走 `git clone` / `git pull`，zip 是备用路线
+- **Python：Debian 10 自带 3.7.3**（未逐字确认，但 UOS 20 的基座决定了就是这个）
+- **CPU 架构：仍未确认**（`uname -m` 老师连试三次都打错）。**但不重要** ——
+  零依赖设计下 x86_64 和 aarch64 跑起来完全一样
 
 | 约束 | 后果 |
 |---|---|
-| 国产 Linux，不是 Windows | 交付脚本是 `.sh` + `.desktop`，不是 `.bat` |
-| 大概率 ARM64 | **绝对不能依赖任何需要编译的 pip 包**（numpy / Pillow / PyMuPDF / opencv 在 ARM 上没有现成轮子，会现场编译，编译失败远程救不回来） |
-| 系统自带 Python 可能是 3.7 | 语法基线锁 **Python 3.7**，不用 3.8+ 的新语法 |
-| 自带浏览器可能较老 | 前端 JS 基线锁 **ES2017**，CSS 用保守写法 |
+| 国产 Linux，不是 Windows | 交付脚本是 `.sh` + `.desktop`，不是 `.bat`；`.sh` 必须是 LF 换行 |
+| 可能是 ARM64 | **绝对不能依赖任何需要编译的 pip 包**（numpy / Pillow / PyMuPDF / opencv 在 ARM 上没有现成轮子，会现场编译，编译失败远程救不回来） |
+| Python 3.7.3 | 语法基线锁 **Python 3.7**，不用 3.8+ 的新语法和新 API |
+| 自带浏览器较老 | 前端 JS 基线锁 **ES2017**，CSS 用保守写法，不引 CDN |
 | 政企机器可能有网络管控 | 除 AI 批改外，**全部功能离线可用**；AI 是可关闭的开关 |
+
+**基线不是靠自觉守的**：`tests/test_baseline.py` 会用 `ast.parse(feature_version=(3,7))`
+真按 3.7 的规则解析一遍全部产品代码，并扫掉 3.8+/3.9+ 才有的标准库 API、
+ES2018+ 的 JS 写法、以及页面里的外链。开发机是 3.12，**能跑不代表那边能跑**。
 
 **因此：本项目零第三方依赖。只用 Python 标准库 + 浏览器原生能力。**
 不写 `requirements.txt`（写了就是给人装东西的信号），不用 pip。

@@ -18,7 +18,9 @@
 
 ## 核心约束：零第三方依赖
 
-老师的机器是 **华为擎云 L540-031 + 银河麒麟 V10 / 统信 UOS V20，大概率 ARM64**。
+老师的机器是 **华为擎云 L540-031**，2026-07-29 实机确认是
+**统信 UOS Desktop 20 Pro**（代号 eagle，基于 Debian 10 → 自带 **Python 3.7.3**），
+**git 2.20.1 已装**，CPU 架构未确认但可能是 ARM64。
 在那台机器上 `pip install` 任何需要编译的包（numpy / Pillow / PyMuPDF / Flask / requests /
 openpyxl / reportlab）都会现场编译并大概率失败，远程救不回来。
 
@@ -40,6 +42,11 @@ openpyxl / reportlab）都会现场编译并大概率失败，远程救不回来
 
 **语法基线**：Python **3.7**、JavaScript **ES2017**、保守 CSS。
 开发机是 Python 3.12，能跑不代表老师机器能跑 —— 细则见 CLAUDE.md 第 1 节。
+
+这条**由测试守着**：[`tests/test_baseline.py`](tests/test_baseline.py) 用
+`ast.parse(feature_version=(3,7))` 真按 3.7 的规则解析全部产品代码，
+并扫掉 3.8+/3.9+ 的标准库 API、ES2018+ 的 JS 写法、页面外链、以及任何第三方 import。
+越线就红，不用靠记性。
 
 ---
 
