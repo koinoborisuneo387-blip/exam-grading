@@ -393,6 +393,106 @@ def grade_paper(questions, student_images, key_images=None) -> dict:
     return {"items": items, "model": ai["model"]}
 
 
+IDENTITY_SYSTEM = (
+    "你是一个只做文字抄录的助手，正在处理学生答卷的扫描件。"
+    "你的唯一任务是把卷面表头上写着的学生姓名和学号**原样抄下来**。\n"
+    "铁律：**只抄卷子上确实写着的字，绝对不许猜测、不许编造、不许补全。**"
+    "字迹潦草看不清、或者这一页压根没有姓名栏，就老老实实返回 null —— "
+    "写错名字会导致分数记到别的同学头上，比返回 null 严重得多。\n"
+    "只输出一个 JSON 对象，不要输出任何其它文字、不要用代码块包裹。"
+)
+
+IDENTITY_TEMPLATE = """下面按顺序给你 {count} 页学生答卷的扫描图，编号 1 到 {count}。
+
+请逐页读出表头上的**学生姓名**和**学号**。
+
+注意：
+1. 只抄卷面上写着的内容。看不清、没写、或这一页没有姓名栏，对应字段填 null。
+2. 「姓名」「学号」这类标签不要抄进去，只要后面的内容。
+3. has_header 表示这一页**有没有填写姓名的表头**——
+   一份答卷的第一页通常有，第二页往后通常没有。用它来判断哪几页属于同一个学生。
+4. 不确定就填 null。**宁可空着让老师补，也不要写一个可能错的名字。**
+
+返回 JSON：
+{{
+  "pages": [
+    {{"index": 1, "name": "读到的姓名或 null", "student_no": "读到的学号或 null",
+      "has_header": true}}
+  ]
+}}"""
+
+
+def read_identity(images) -> dict:
+    """从答卷图上读出每一页的学生姓名和学号。
+
+    **返回的只是草稿**，必须经老师在「确认姓名」界面点头才能落库 ——
+    认错名字会把分数记到别人头上，见 SPEC 5.4c。
+
+    返回 {"pages": [{"index", "name", "student_no", "has_header"}], "model": str}
+    """
+    ai = _require_config()
+    if not ai.get("vision"):
+        raise AIError("当前用的模型看不了卷子图，没法从卷面读姓名。\n"
+                      "到「设置」页换成智谱 GLM-5V 这类能看图的模型，"
+                      "或者手动填写学生名单。")
+    pics = _clean_images(images)
+    if not pics:
+        raise AIError("没有可以识别的答卷图片。")
+
+    text = IDENTITY_TEMPLATE.format(count=len(pics))
+    payload = {
+        "model": ai["model"],
+        "temperature": 0,
+        "messages": [
+            {"role": "system", "content": IDENTITY_SYSTEM},
+            {"role": "user", "content": _user_content(text, pics)},
+        ],
+    }
+    url = ai["base_url"].rstrip("/") + "/chat/completions"
+    data = _post(url, payload, ai["api_key"], int(ai.get("timeout") or 90))
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError):
+        raise AIError("AI 服务的返回格式不认识，可能这个接口地址不是 OpenAI 兼容的。")
+
+    obj = _extract_json(content)
+    raw = obj.get("pages")
+    if not isinstance(raw, list):
+        raise AIError("AI 没有按要求返回逐页结果，请重试一次。")
+
+    by_index = {}
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        try:
+            idx = int(item.get("index"))
+        except (TypeError, ValueError):
+            continue
+        if not (1 <= idx <= len(pics)):
+            continue
+        by_index[idx] = {
+            "index": idx,
+            "name": _clean_field(item.get("name")),
+            "student_no": _clean_field(item.get("student_no")),
+            "has_header": bool(item.get("has_header", True)),
+        }
+    # 模型漏了哪页就补一个空的，绝不让页面凭空消失
+    pages = [by_index.get(i, {"index": i, "name": "", "student_no": "",
+                              "has_header": i == 1})
+             for i in range(1, len(pics) + 1)]
+    return {"pages": pages, "model": ai["model"]}
+
+
+def _clean_field(value) -> str:
+    """模型可能返回 None、字符串 "null"、或者带标签的文字，统一成干净字符串。"""
+    if value is None:
+        return ""
+    s = str(value).strip()
+    if s.lower() in ("null", "none", "n/a", "na", "-", "—", "无", "未知", "看不清"):
+        return ""
+    return s[:40]
+
+
 def test_connection() -> dict:
     """设置页的「测试连接」按钮。发一个很短的请求，验证地址/密钥/模型三件事。
 

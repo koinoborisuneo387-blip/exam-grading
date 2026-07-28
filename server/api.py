@@ -10,7 +10,7 @@ import zipfile
 from base64 import b64decode
 from pathlib import Path
 
-from . import ai, analysis, config, db, imgutil, pdfimg, xlsx
+from . import ai, analysis, config, db, imgutil, pdfimg, roster, xlsx
 from .grading import (DEFAULT_QTYPE, QTYPE_LABELS, QTYPES, clamp_score,
                       normalize_qtype, round_score, to_float)
 
@@ -528,22 +528,15 @@ def api_copy_questions(ctx, exam_id):
 # 学生
 # --------------------------------------------------------------------------
 
-_NO_NAME_RE = re.compile(r"^\s*(\d{1,20})[\s,，\t]+(.+?)\s*$")
+# 名单解析和姓名匹配都在 server/roster.py 里，那边是纯函数、好测
+parse_roster = roster.parse_roster
 
 
-def parse_roster(text: str) -> list:
-    """一行一个学生。支持「学号 姓名」「学号,姓名」或者只有姓名。"""
-    out = []
-    for line in str(text or "").replace("\r", "\n").split("\n"):
-        line = line.strip()
-        if not line:
-            continue
-        m = _NO_NAME_RE.match(line)
-        if m:
-            out.append({"student_no": m.group(1), "name": m.group(2).strip()})
-        else:
-            out.append({"student_no": "", "name": line})
-    return out
+def _roster_of(exam_id) -> list:
+    return db.query(
+        "SELECT id, name, student_no FROM student WHERE exam_id=? ORDER BY sort_order, id",
+        (exam_id,),
+    )
 
 
 @route("GET", r"/api/exams/(\d+)/students")
@@ -585,6 +578,46 @@ def api_add_students(ctx, exam_id):
     if not created:
         raise ApiError("名单里一个有效姓名都没有。")
     return {"created": created}
+
+
+@route("POST", r"/api/exams/(\d+)/students/copy")
+def api_copy_students(ctx, exam_id):
+    """从上一场考试复制名单 —— 班级名单一学期基本不变，这比每次重录靠谱得多。"""
+    _exam(exam_id)
+    src = _int(ctx.json().get("from_exam_id"))
+    if not src:
+        raise ApiError("没有选择要复制的考试。")
+    rows = db.query(
+        "SELECT name, student_no, note FROM student WHERE exam_id=? ORDER BY sort_order, id",
+        (src,),
+    )
+    if not rows:
+        raise ApiError("那场考试还没有学生名单可以复制。")
+
+    # 已经有的学生不重复加：学号相同或姓名相同就跳过
+    existing = _roster_of(exam_id)
+    have_no = {roster.normalize_no(s["student_no"]) for s in existing
+               if roster.normalize_no(s["student_no"])}
+    have_name = {roster.normalize_name(s["name"]) for s in existing}
+
+    sort_order = _next_sort("student", exam_id)
+    created, skipped = 0, 0
+    for r in rows:
+        no = roster.normalize_no(r["student_no"])
+        nm = roster.normalize_name(r["name"])
+        if (no and no in have_no) or (nm and nm in have_name):
+            skipped += 1
+            continue
+        db.execute(
+            "INSERT INTO student (exam_id, sort_order, name, student_no, note) "
+            "VALUES (?,?,?,?,?)",
+            (exam_id, sort_order, r["name"], r["student_no"], r["note"]))
+        if no:
+            have_no.add(no)
+        have_name.add(nm)
+        sort_order += 10
+        created += 1
+    return {"created": created, "skipped": skipped}
 
 
 @route("PUT", r"/api/students/(\d+)")
@@ -734,23 +767,79 @@ def api_stage_list(ctx, exam_id):
     return {"items": items}
 
 
+IDENTIFY_BATCH = 8  # 一次最多送几页给模型，太多容易超时也容易串页
+
+
+@route("POST", r"/api/exams/(\d+)/stage/identify")
+def api_identify(ctx, exam_id):
+    """让 AI 读暂存区每一页的姓名学号，并对到已有名单上。
+
+    body: {"pages": [{"rel": "...", "image": "data:image/jpeg;base64,..."}]}
+    返回按学生分好组的草稿，**前端必须让老师确认后再调 /bind**，这里不写任何数据。
+    """
+    _exam(exam_id)
+    items = ctx.json().get("pages") or []
+    if not items:
+        raise ApiError("没有要识别的页面。")
+
+    ordered = [it for it in items if it.get("rel")]
+    read = []
+    try:
+        for start in range(0, len(ordered), IDENTIFY_BATCH):
+            chunk = ordered[start:start + IDENTIFY_BATCH]
+            result = ai.read_identity([it.get("image") for it in chunk])
+            for i, page in enumerate(result["pages"]):
+                if i >= len(chunk):
+                    break
+                read.append({
+                    "rel": chunk[i]["rel"],
+                    "name": page.get("name") or "",
+                    "student_no": page.get("student_no") or "",
+                    "has_header": page.get("has_header", True),
+                })
+    except ai.AIError as exc:
+        raise ApiError(str(exc), 400)
+
+    groups = roster.group_pages(read)
+    current = _roster_of(exam_id)
+    for g in groups:
+        m = roster.match_student(g["name"], g["student_no"], current)
+        g.update(m)
+    return {"groups": groups, "pages": read, "roster": current}
+
+
 @route("POST", r"/api/exams/(\d+)/bind")
 def api_bind(ctx, exam_id):
-    """把暂存区的页面绑到学生名下。
+    """把暂存区的页面绑到学生名下。老师在「确认姓名」界面点确认之后才会走到这里。
 
-    body: {"assignments": [{"student_id": 1, "rels": ["uploads/1/_stage/a.jpg", ...]}]}
+    body: {"assignments": [
+        {"student_id": 1, "rels": [...]},                       # 绑到已有学生
+        {"name": "张三", "student_no": "01", "rels": [...]}      # 新建学生再绑
+    ]}
     """
     _exam(exam_id)
     assignments = ctx.json().get("assignments") or []
     if not assignments:
         raise ApiError("没有要绑定的页面。")
     stage = _stage_dir(exam_id).resolve()
-    bound = 0
+    bound, created = 0, 0
     for item in assignments:
         student_id = _int(item.get("student_id"))
         rels = item.get("rels") or []
-        if not student_id or not rels:
+        if not rels:
             continue
+        if not student_id:
+            # 名单里没有这个人，老师确认后在这里新建
+            name = str(item.get("name") or "").strip()
+            if not name:
+                raise ApiError("有答卷没有指定学生：请在「确认姓名」那一步把姓名填上，"
+                               "或者选一个已有的学生。")
+            student_id = db.execute(
+                "INSERT INTO student (exam_id, sort_order, name, student_no) "
+                "VALUES (?,?,?,?)",
+                (exam_id, _next_sort("student", exam_id), name,
+                 str(item.get("student_no") or "").strip()))
+            created += 1
         stu = _student(student_id)
         if str(stu["exam_id"]) != str(exam_id):
             raise ApiError("学生「%s」不属于这场考试。" % stu["name"])
@@ -772,7 +861,7 @@ def api_bind(ctx, exam_id):
         if images:
             _append_pages(paper["id"], images)
             bound += len(images)
-    return {"bound": bound}
+    return {"bound": bound, "created_students": created}
 
 
 @route("POST", r"/api/exams/(\d+)/stage/clear")

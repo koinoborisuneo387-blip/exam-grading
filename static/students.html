@@ -11,14 +11,19 @@
 
   <div class="panel">
     <h2>学生名单</h2>
-    <p class="hint">一行一个学生。可以写「01 张三」，也可以只写「张三」。
-      从 Excel 里复制两列粘过来也认。</p>
+    <p class="hint">
+      名单<b>不是必须先建好的</b> —— 直接传答卷，AI 会从卷面读出姓名，
+      你确认一下就自动进名单（见下面「导入答卷」）。<br>
+      这里适合三种情况：手上已经有名单想一次粘进来；从上次考试直接复制；或者补录缺考的人。
+    </p>
     <div class="row">
       <div class="field" style="flex:2 1 320px">
         <textarea id="roster" rows="4" placeholder="01 张三&#10;02 李四&#10;03 王五"></textarea>
       </div>
       <div class="field" style="flex:0 0 auto">
         <button class="btn" id="btn-roster">加入名单</button>
+        <button class="btn ghost" id="btn-copy-roster" style="margin-left:6px">
+          从上次考试复制</button>
       </div>
     </div>
     <div id="stulist" style="margin-top:14px"><p class="empty">加载中…</p></div>
@@ -45,6 +50,37 @@
 
   <div class="panel" id="stage-panel" hidden>
     <h2>把页面分给学生</h2>
+    <div class="row" style="margin-bottom:12px;padding-bottom:12px;
+         border-bottom:1px solid #dde3ea">
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" id="btn-identify">🤖 让 AI 读卷面上的姓名</button></div>
+      <div class="field" style="flex:1 1 240px">
+        <div id="identify-status" style="font-size:13px;color:#6b7785">
+          AI 会读出每份卷子表头的姓名和学号，自动按学生分好组。
+          <b>读出来的只是草稿，要你确认之后才会真的建名单、绑答卷。</b>
+        </div>
+      </div>
+    </div>
+
+    <div id="confirm-box" hidden>
+      <p class="hint">
+        逐行核对一下。<span style="color:#16a34a">●</span> 绿色＝和名单对上了；
+        <span style="color:#d97706">●</span> 黄色＝会新建或需要你确认；
+        <span style="color:#dc2626">●</span> 红色＝没读出姓名，<b>必须你来指定</b>。
+        姓名读错了直接在框里改。
+      </p>
+      <div id="confirm-list"></div>
+      <div class="row" style="margin-top:14px">
+        <div class="field" style="flex:0 0 auto">
+          <button class="btn" id="btn-confirm-bind">确认导入</button></div>
+        <div class="field" style="flex:0 0 auto">
+          <button class="btn ghost" id="btn-confirm-cancel">取消，改用手动分配</button></div>
+        <div class="field" style="flex:1 1 200px">
+          <div id="confirm-hint" style="font-size:13px;color:#6b7785"></div></div>
+      </div>
+    </div>
+
+    <div id="manual-box">
     <p class="hint">下面是刚导进来还没分配的页面。先点选几页，再选学生，点「绑定」。
       如果每人页数一样，直接用右边的自动分配更快。</p>
     <div class="row" style="margin-bottom:10px">
@@ -70,6 +106,7 @@
       </div>
     </div>
     <div id="stage" class="thumb-grid"></div>
+    </div>
   </div>
 
   <div class="panel">

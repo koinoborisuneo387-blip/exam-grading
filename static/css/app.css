@@ -460,6 +460,46 @@ kbd {
   font-size: 11px;
 }
 
+/* ---------- 确认姓名 ---------- */
+.confirm-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  background: #fff;
+}
+.confirm-row.ok { border-left-color: var(--ok); }
+.confirm-row.warn { border-left-color: var(--warn); background: #fffbeb; }
+.confirm-row.bad { border-left-color: var(--danger); background: #fef2f2; }
+
+.confirm-row .thumbs { display: flex; gap: 5px; flex: 0 0 auto; }
+.confirm-row .thumbs img {
+  width: 62px;
+  height: 84px;
+  object-fit: contain;
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: zoom-in;
+}
+.confirm-row .fields { flex: 1 1 auto; min-width: 0; }
+.confirm-row .fields .line {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.confirm-row .fields input[type=text] { width: 130px; }
+.confirm-row .fields select { max-width: 260px; }
+.confirm-row .status { font-size: 13px; margin-top: 6px; }
+.confirm-row.ok .status { color: #15803d; }
+.confirm-row.warn .status { color: #a16207; }
+.confirm-row.bad .status { color: #b91c1c; font-weight: 600; }
+
 /* ---------- 打印 ---------- */
 @media print {
   .topbar, .no-print, #toast { display: none !important; }

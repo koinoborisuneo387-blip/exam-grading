@@ -125,6 +125,12 @@ drop.addEventListener('drop', function (e) {
 /* ---------- 暂存区绑定 ---------- */
 function renderStage() {
   $('#stage-panel').hidden = stageItems.length === 0;
+  // 暂存区一变，之前那份确认草稿就作废了，别让老师对着旧列表点确认
+  if ($('#confirm-box') && !$('#confirm-box').hidden) {
+    setManualVisible(true);
+    $('#confirm-list').innerHTML = '';
+    $('#identify-status').textContent = '';
+  }
   var box = $('#stage');
   box.innerHTML = '';
   stageItems.forEach(function (item, i) {
@@ -212,6 +218,227 @@ $('#btn-clear').addEventListener('click', function () {
       guard(API.post('/api/exams/' + EXAM_ID + '/stage/clear'), '清空失败')
         .then(function (r) { if (r) { selected = {}; loadStage(); } });
     });
+});
+
+/* ---------- AI 读姓名 + 确认导入 ---------- */
+/* 铁律：AI 读出来的姓名只是草稿。老师在这一屏点了「确认导入」才会建名单、绑答卷。
+   认错名字 = 分数记到别人头上，而且要等整班批完才会发现。 */
+
+var confirmGroups = null;
+
+function setManualVisible(show) {
+  $('#manual-box').hidden = !show;
+  $('#confirm-box').hidden = show;
+}
+
+function relName(rel) {
+  var parts = String(rel).split('/');
+  return parts[parts.length - 1];
+}
+
+function confirmRow(group, index) {
+  var row = h('div', { class: 'confirm-row' });
+  var thumbs = h('div', { class: 'thumbs' });
+  group.rels.forEach(function (rel) {
+    thumbs.appendChild(h('img', {
+      src: fileUrl(rel), alt: relName(rel), title: relName(rel) + '（点开看大图）',
+      loading: 'lazy',
+      onclick: function () {
+        modal(relName(rel), h('img', { src: fileUrl(rel), style: 'width:100%' }),
+          { okText: '关闭', cancelText: '关闭' });
+      }
+    }));
+  });
+
+  var nameInput = h('input', { type: 'text', value: group.name || '',
+    placeholder: '姓名' });
+  var noInput = h('input', { type: 'text', value: group.student_no || '',
+    placeholder: '学号', style: 'width:90px' });
+  var pick = h('select', {});
+  var status = h('div', { class: 'status' });
+
+  function rebuildOptions() {
+    var typed = nameInput.value.trim();
+    var keep = pick.value;
+    pick.innerHTML = '';
+    pick.appendChild(h('option', { value: '' }, '— 请指定这是谁 —'));
+    pick.appendChild(h('option', { value: 'new' },
+      typed ? ('新建学生：' + typed) : '新建学生（先填姓名）'));
+    students.forEach(function (s) {
+      pick.appendChild(h('option', { value: String(s.id) },
+        '绑到已有：' + (s.student_no ? s.student_no + ' ' : '') + s.name));
+    });
+    pick.value = keep;
+    if (pick.value === '') pick.value = keep;
+  }
+
+  rebuildOptions();
+  // 只有高置信度才敢替老师预选；低置信度和读不出的一律留空，逼他做决定
+  if (group.confidence === 'high' && group.student_id) {
+    pick.value = String(group.student_id);
+  } else if (group.confidence === 'none' && group.name) {
+    pick.value = 'new';
+  } else {
+    pick.value = '';
+  }
+
+  function refresh() {
+    var v = pick.value;
+    var typed = nameInput.value.trim();
+    row.classList.remove('ok', 'warn', 'bad');
+    if (v === '') {
+      // 红色配的话必须是「接下来该干什么」，不能只甩一句识别结论
+      row.classList.add('bad');
+      if (!group.name) {
+        status.textContent = '● 没读出姓名。请在左边填上姓名，或从下拉框里选一个学生。';
+      } else if (group.confidence === 'low') {
+        status.textContent = '● ' + group.reason + '（请从下拉框里确认）';
+      } else {
+        status.textContent = '● 请从下拉框里指定这份卷子是谁的。';
+      }
+    } else if (v === 'new' && !typed) {
+      // 不能建一个没名字的学生，这行必须挡住
+      row.classList.add('bad');
+      status.textContent = '● 要新建学生，得先把姓名填上。';
+    } else if (v === 'new') {
+      row.classList.add('warn');
+      status.textContent = '● 会新建学生「' + typed + '」';
+    } else {
+      var s = students.filter(function (x) { return String(x.id) === v; })[0];
+      var same = group.confidence === 'high' && String(group.student_id) === v;
+      row.classList.add(same ? 'ok' : 'warn');
+      status.textContent = (same ? '● ' + (group.reason || '和名单对上了') + '：'
+        : '● 你指定绑到：') + (s ? s.name : '');
+    }
+    updateConfirmHint();
+  }
+
+  nameInput.addEventListener('input', function () { rebuildOptions(); refresh(); });
+  noInput.addEventListener('input', function () { refresh(); });
+  pick.addEventListener('change', refresh);
+
+  row.appendChild(thumbs);
+  row.appendChild(h('div', { class: 'fields' },
+    h('div', { class: 'line' },
+      h('span', { style: 'color:#6b7785;font-size:13px' }, '第 ' + (index + 1) + ' 份'),
+      h('span', { style: 'color:#6b7785;font-size:13px' }, group.rels.length + ' 页'),
+      nameInput, noInput, pick),
+    status));
+
+  row._get = function () {
+    var v = pick.value;
+    if (v === '') return null;
+    var item = { rels: group.rels };
+    if (v === 'new') {
+      item.name = nameInput.value.trim();
+      item.student_no = noInput.value.trim();
+      if (!item.name) return null;
+    } else {
+      item.student_id = Number(v);
+    }
+    return item;
+  };
+  refresh();
+  return row;
+}
+
+function updateConfirmHint() {
+  var rows = $$('#confirm-list .confirm-row');
+  var bad = rows.filter(function (r) { return r.classList.contains('bad'); }).length;
+  $('#btn-confirm-bind').disabled = bad > 0 || rows.length === 0;
+  $('#confirm-hint').textContent = bad > 0
+    ? ('还有 ' + bad + ' 份没指定是谁，处理完才能导入。')
+    : (rows.length + ' 份答卷都指定好了，可以导入。');
+}
+
+function renderConfirm(groups) {
+  confirmGroups = groups;
+  var box = $('#confirm-list');
+  box.innerHTML = '';
+  groups.forEach(function (g, i) { box.appendChild(confirmRow(g, i)); });
+  setManualVisible(false);
+  updateConfirmHint();
+}
+
+$('#btn-identify').addEventListener('click', function () {
+  if (!stageItems.length) { toast('暂存区里没有页面。', 'warn'); return; }
+  var btn = this;
+  btn.disabled = true;
+  var status = $('#identify-status');
+  status.textContent = '正在把 ' + stageItems.length + ' 页发给 AI 读姓名…';
+  Promise.all(stageItems.map(function (it) {
+    return loadImage(fileUrl(it.rel)).then(function (img) {
+      // 只要看清表头就够了，压得比批改时更狠，快也省钱
+      return { rel: it.rel, image: shrinkImage(img, 1100, 0.75) };
+    }).catch(function () { return null; });
+  })).then(function (pages) {
+    pages = pages.filter(function (p) { return p && p.image; });
+    if (!pages.length) throw new Error('页面图片读不出来');
+    return API.post('/api/exams/' + EXAM_ID + '/stage/identify', { pages: pages });
+  }).then(function (r) {
+    status.textContent = '读完了，共 ' + r.groups.length + ' 份答卷。请核对下面每一行。';
+    renderConfirm(r.groups);
+  }).catch(function (err) {
+    status.textContent = '';
+    toast(err.message + '\n可以改用下面的手动分配。', 'err', 11000);
+    setManualVisible(true);
+  }).then(function () { btn.disabled = false; });
+});
+
+$('#btn-confirm-cancel').addEventListener('click', function () {
+  setManualVisible(true);
+  $('#identify-status').textContent = '';
+});
+
+$('#btn-confirm-bind').addEventListener('click', function () {
+  var rows = $$('#confirm-list .confirm-row');
+  var assignments = [];
+  for (var i = 0; i < rows.length; i++) {
+    var item = rows[i]._get();
+    if (!item) { toast('第 ' + (i + 1) + ' 份还没指定是谁。', 'warn'); return; }
+    assignments.push(item);
+  }
+  var btn = this;
+  btn.disabled = true;
+  guard(API.post('/api/exams/' + EXAM_ID + '/bind', { assignments: assignments }),
+    '导入失败').then(function (r) {
+      btn.disabled = false;
+      if (!r) return;
+      toast('导入了 ' + r.bound + ' 页' +
+        (r.created_students ? '，新建了 ' + r.created_students + ' 个学生' : ''), 'ok', 5000);
+      setManualVisible(true);
+      $('#identify-status').textContent = '';
+      selected = {};
+      loadStudents();
+      loadStage();
+    });
+});
+
+$('#btn-copy-roster').addEventListener('click', function () {
+  guard(API.get('/api/exams'), '读取考试列表失败').then(function (data) {
+    if (!data) return;
+    var others = data.items.filter(function (e) {
+      return String(e.id) !== String(EXAM_ID) && e.student_count > 0;
+    });
+    if (!others.length) { toast('没有别的考试有名单可以复制。', 'warn'); return; }
+    var sel = h('select', {});
+    others.forEach(function (e) {
+      sel.appendChild(h('option', { value: e.id },
+        e.name + (e.klass ? '（' + e.klass + '）' : '') + ' — ' + e.student_count + ' 人'));
+    });
+    modal('从上次考试复制名单', h('div', {},
+      h('p', { class: 'hint' }, '学号或姓名已经在本场名单里的会自动跳过，不会重复。'), sel),
+      { okText: '复制' }).then(function (ok) {
+        if (!ok) return;
+        guard(API.post('/api/exams/' + EXAM_ID + '/students/copy',
+          { from_exam_id: Number(sel.value) }), '复制失败').then(function (r) {
+            if (!r) return;
+            toast('复制了 ' + r.created + ' 个学生' +
+              (r.skipped ? '，跳过 ' + r.skipped + ' 个已有的' : ''), 'ok');
+            loadStudents();
+          });
+      });
+  });
 });
 
 /* ---------- AI 预批全班 ---------- */
@@ -312,12 +539,26 @@ function loadStage() {
     .then(function (r) { if (r) { stageItems = r.items; renderStage(); } });
 }
 
+function checkAI() {
+  return API.get('/api/config').then(function (cfg) {
+    var ai = cfg.ai;
+    var ready = ai.enabled && ai.has_key && ai.base_url && ai.model;
+    if (!ready || !ai.vision) {
+      $('#btn-identify').disabled = true;
+      $('#btn-batch-ai').disabled = true;
+      $('#identify-status').textContent = !ready
+        ? 'AI 还没配好，读不了姓名。点右上角「AI 设置」填好 Key 就能用；现在可以用下面的手动分配。'
+        : '当前模型看不了图片，读不了姓名。到「AI 设置」换成智谱 GLM-5V 这类能看图的模型。';
+    }
+  }).catch(function () { /* 配置读不到不影响手动流程 */ });
+}
+
 API.get('/api/exams/' + EXAM_ID).then(function (data) {
   exam = data;
   mountHeader({ tab: 'students', exam: exam });
   $('#btn-next').href = 'grade.html?exam=' + exam.id;
   return loadStudents();
-}).then(loadStage).catch(function (err) {
+}).then(loadStage).then(checkAI).catch(function (err) {
   toast('打不开这场考试：' + err.message, 'err');
   setTimeout(function () { location.href = 'index.html'; }, 1500);
 });
