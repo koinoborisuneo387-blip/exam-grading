@@ -292,6 +292,75 @@ def wrong_list(exam_id: int, threshold: float = 60.0) -> list:
     return out
 
 
+def student_report(exam_id: int, student_id: int) -> dict:
+    """个人报告：一个学生的总分、名次、逐题得分（带班平均对照）、错题、评语。
+
+    名次只在这份卷子批完（status='done'）后才给 —— 没批完的总分不完整，
+    拿去排名会把人排到最后，打印出去就是误导。
+    """
+    exam = db.query_one("SELECT * FROM exam WHERE id=?", (exam_id,))
+    stu = db.query_one("SELECT * FROM student WHERE id=?", (student_id,))
+    if not exam or not stu:
+        return {}
+    questions = db.query(
+        "SELECT * FROM question WHERE exam_id=? ORDER BY sort_order, id", (exam_id,))
+    paper = db.query_one(
+        "SELECT * FROM paper WHERE exam_id=? AND student_id=?", (exam_id, student_id))
+    stats = class_stats(exam_id)
+    class_q = {q["question_id"]: q for q in question_stats(exam_id)}
+
+    scores = {}
+    if paper:
+        for s in db.query("SELECT * FROM score WHERE paper_id=?", (paper["id"],)):
+            scores[s["question_id"]] = s
+
+    rank = None
+    if paper and paper["status"] == "done":
+        done = db.query(
+            "SELECT * FROM paper WHERE exam_id=? AND status='done'", (exam_id,))
+        rank = _ranked(done).get(paper["id"])
+
+    items, wrong = [], []
+    for q in questions:
+        rec = scores.get(q["id"])
+        got = rec["score"] if rec else None
+        full = to_float(q["max_score"])
+        rate = (round_score(to_float(got) * 100.0 / full)
+                if (got is not None and full) else None)
+        cq = class_q.get(q["id"], {})
+        items.append({
+            "no_label": q["no_label"],
+            "qtype_label": QTYPE_LABELS.get(q["qtype"], q["qtype"]),
+            "knowledge_point": q["knowledge_point"],
+            "max_score": full,
+            "score": round_score(got) if got is not None else None,
+            "rate": rate,
+            "class_mean": cq.get("mean", 0.0),
+            "comment": (rec["comment"] if rec else "") or "",
+        })
+        if rate is not None and rate < 60:
+            wrong.append({
+                "no_label": q["no_label"],
+                "knowledge_point": q["knowledge_point"],
+                "max_score": full,
+                "score": round_score(got),
+                "lost": round_score(full - to_float(got)),
+                "rate": rate,
+            })
+    wrong.sort(key=lambda x: -x["lost"])
+    return {
+        "exam": exam,
+        "student": stu,
+        "paper": paper,
+        "rank": rank,
+        "graded_count": stats.get("graded_count", 0),
+        "total_students": stats.get("total_students", 0),
+        "class_mean": stats.get("mean", 0.0),
+        "items": items,
+        "wrong": wrong,
+    }
+
+
 def full_report(exam_id: int) -> dict:
     return {
         "table": score_table(exam_id),

@@ -144,6 +144,8 @@ function renderTable(table) {
     tr.appendChild(h('td', { class: 'no-print', style: 'white-space:nowrap' },
       h('a', { class: 'btn small ghost',
         href: 'grade.html?exam=' + EXAM_ID + '&student=' + r.student_id }, '批改'),
+      h('a', { class: 'btn small ghost', style: 'margin-left:4px',
+        href: 'student_report.html?student=' + r.student_id }, '报告'),
       r.paper_id ? h('a', { class: 'btn small ghost', style: 'margin-left:4px',
         href: '/api/papers/' + r.paper_id + '/export/marked.zip' }, '下载批注卷') : null));
     tbody.appendChild(tr);

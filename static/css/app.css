@@ -500,6 +500,29 @@ kbd {
 .confirm-row.warn .status { color: #a16207; }
 .confirm-row.bad .status { color: #b91c1c; font-weight: 600; }
 
+/* ---------- 个人报告 ---------- */
+.rp-head h1 { font-size: 22px; margin: 0 0 4px; }
+.rp-sub { color: var(--muted); margin: 0 0 6px; }
+.rp-stu { font-size: 17px; font-weight: 600; margin: 0 0 14px; }
+.rp-warn {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  font-weight: 600;
+}
+.rp-section { margin-top: 18px; }
+.rp-section > b { display: block; margin-bottom: 8px; }
+.rp-comment {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #f8fafc;
+  padding: 10px 14px;
+  white-space: pre-wrap;
+}
+.rp-foot { color: #94a3b8; font-size: 12px; margin-top: 20px; }
+
 /* ---------- 打印 ---------- */
 @media print {
   .topbar, .no-print, #toast { display: none !important; }

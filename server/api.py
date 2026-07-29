@@ -1088,6 +1088,13 @@ def api_report(ctx, exam_id):
     return analysis.full_report(exam_id)
 
 
+@route("GET", r"/api/students/(\d+)/report")
+def api_student_report(ctx, student_id):
+    """个人报告：总分、名次、逐题得分与班平均对照、错题、评语。"""
+    stu = _student(student_id)
+    return analysis.student_report(stu["exam_id"], int(student_id))
+
+
 @route("GET", r"/api/exams/(\d+)/wrong")
 def api_wrong(ctx, exam_id):
     _exam(exam_id)

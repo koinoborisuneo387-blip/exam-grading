@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>个人成绩报告 — 试卷批改系统</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="wrap">
+
+  <div class="panel no-print">
+    <div class="row">
+      <div class="field" style="flex:0 0 auto">
+        <a class="btn ghost" id="back">← 返回成绩分析</a></div>
+      <div class="field" style="flex:0 0 auto">
+        <button class="btn" onclick="window.print()">打印 / 存成 PDF</button></div>
+    </div>
+    <p class="hint" style="margin:10px 0 0">
+      点「打印」，在打印窗口里把打印机选成「另存为 PDF」，就能存成文件发给学生或家长。
+      这一块灰色说明不会被打出来。</p>
+  </div>
+
+  <div class="panel" id="sheet">
+    <p class="empty">正在读取…</p>
+  </div>
+
+</div>
+<script src="js/common.js"></script>
+<script src="js/student_report.js"></script>
+</body>
+</html>
