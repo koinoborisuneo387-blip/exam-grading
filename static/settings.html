@@ -111,6 +111,21 @@
   </div>
 
   <div class="panel">
+    <h2>数据备份（建议常做）</h2>
+    <p class="hint">
+      成绩、答卷图片、批注、AI 密钥都<b>只存在这台电脑</b>的 <code>data</code> 文件夹里。
+      电脑一旦坏了就全没了，所以<b>建议每批完一场考试就备份一次</b>。
+    </p>
+    <a class="btn" href="/api/backup/data.zip">下载备份文件</a>
+    <p class="hint" style="margin-top:10px">
+      点了会打包成一个压缩文件下载，答卷图片多的话要等一小会儿，等浏览器提示下载完成即可。
+      下载好的文件存到 U 盘或网盘里就行。<br>
+      万一哪天要恢复：把备份压缩包解压，用里面的 <code>data</code> 文件夹
+      替换程序目录下的 <code>data</code> 文件夹，再重新启动程序。
+    </p>
+  </div>
+
+  <div class="panel">
     <h2>关于这个系统</h2>
     <table>
       <tr><th style="width:130px">版本</th><td id="i-version">—</td></tr>

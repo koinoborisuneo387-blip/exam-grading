@@ -740,6 +740,18 @@ API.get('/api/exams/' + EXAM_ID + '/students').then(function (r) {
     for (var i = 0; i < students.length; i++) {
       if (String(students[i].id) === String(want)) { start = i; break; }
     }
+  } else {
+    // 断点续批：没指定学生就跳到第一个有答卷且还没批完的，昨天批到哪今天接着批
+    for (var j = 0; j < students.length; j++) {
+      if ((students[j].page_count || 0) > 0 && students[j].status !== 'done') {
+        start = j;
+        break;
+      }
+    }
+    if (start > 0) {
+      toast('接着上次没批完的批：' + students[start].name +
+        '（第 ' + (start + 1) + ' 人）', 'ok', 4000);
+    }
   }
   return loadStudent(start);
 }).catch(function (err) {

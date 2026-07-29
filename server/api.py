@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import shutil
+import tempfile
 import zipfile
 from base64 import b64decode
+from datetime import datetime
 from pathlib import Path
 
 from . import ai, analysis, config, db, imgutil, pdfimg, roster, xlsx
@@ -29,12 +32,16 @@ class ApiError(Exception):
 
 class FileResponse(object):
     def __init__(self, data, content_type, filename=None, inline=False,
-                 max_age=0):
+                 max_age=0, path=None, cleanup=False):
         self.data = data
         self.content_type = content_type
         self.filename = filename
         self.inline = inline
         self.max_age = max_age
+        # path 不为 None 时改为从这个文件分块流式发送（备份包可能几百 MB，
+        # 不许整块读进内存）；cleanup=True 表示发完把临时文件删掉
+        self.path = path
+        self.cleanup = cleanup
 
 
 def route(method, pattern):
@@ -1217,6 +1224,128 @@ def api_export_marked(ctx, paper_id):
     filename = re.sub(r"[\\/:*?\"<>|]", "_",
                       "%s_%s_批注卷.zip" % (exam["name"], student["name"]))
     return FileResponse(buf.getvalue(), "application/zip", filename)
+
+
+def _temp_file(prefix, suffix) -> Path:
+    """在系统临时目录建一个空文件并返回路径（大 zip 不走内存，落盘流式发）。"""
+    fd, name = tempfile.mkstemp(prefix=prefix, suffix=suffix)
+    os.close(fd)
+    return Path(name)
+
+
+def _safe_folder(name: str) -> str:
+    return re.sub(r"[\\/:*?\"<>|]", "_", str(name)).strip() or "未命名"
+
+
+# 图片本身已经压缩过，deflate 只是白费时间
+_STORE_EXTS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".zip"}
+
+
+@route("GET", r"/api/exams/(\d+)/export/marked\.zip")
+def api_export_marked_all(ctx, exam_id):
+    """全班批注卷一键打包：一人一个文件夹，有批注图用批注图，没有就用原图。"""
+    exam = _exam(exam_id)
+    students = db.query(
+        "SELECT * FROM student WHERE exam_id=? ORDER BY sort_order, id", (exam_id,))
+    papers = db.query("SELECT * FROM paper WHERE exam_id=?", (exam_id,))
+    paper_by_student = {p["student_id"]: p for p in papers}
+
+    tmp = _temp_file("pjpg_marked_", ".zip")
+    count = 0
+    used = set()
+    try:
+        with zipfile.ZipFile(str(tmp), "w", zipfile.ZIP_STORED) as z:
+            for i, stu in enumerate(students):
+                paper = paper_by_student.get(stu["id"])
+                if not paper:
+                    continue
+                pages = db.query(
+                    "SELECT * FROM page WHERE paper_id=? ORDER BY page_no, id",
+                    (paper["id"],))
+                if not pages:
+                    continue
+                prefix = str(stu["student_no"] or "").strip() or ("%02d" % (i + 1))
+                folder = _safe_folder("%s_%s" % (prefix, stu["name"]))
+                if folder in used:
+                    folder = "%s_%d" % (folder, stu["id"])
+                used.add(folder)
+                for pg in pages:
+                    rel = pg["annotated_path"] or pg["image_path"]
+                    try:
+                        path = _rel_to_abs(rel)
+                    except ApiError:
+                        continue
+                    if not path.exists():
+                        continue
+                    z.write(str(path),
+                            "%s/第%d页%s" % (folder, pg["page_no"], path.suffix))
+                    count += 1
+    except Exception:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+    if not count:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise ApiError("还没有任何学生导入答卷，没有可以打包的图片。")
+    return FileResponse(None, "application/zip",
+                        _download_name(exam, "_全班批注卷.zip"),
+                        path=tmp, cleanup=True)
+
+
+# --------------------------------------------------------------------------
+# 数据备份
+# --------------------------------------------------------------------------
+
+@route("GET", r"/api/backup/data\.zip")
+def api_backup_data(ctx):
+    """把整个 data/ 打包下载 —— 成绩库、答卷图、批注、密钥都在里面。
+
+    - 数据库不直接拷文件（开着 WAL，可能拷到写了一半的），
+      用 SQLite 在线备份接口抓一致快照放进包里，`-wal` / `-shm` 不进包
+    - `update.sh` 存的旧代码备份（data/_backup_*/）不是老师的数据，不进包
+    - 包内保留 data/ 目录结构：恢复 = 解压 → 替换 data/ → 重启
+    """
+    base = config.data_dir().resolve()
+    db_name = config.db_path().name
+    skip_names = {db_name, db_name + "-wal", db_name + "-shm"}
+
+    tmp = _temp_file("pjpg_backup_", ".zip")
+    snap = _temp_file("pjpg_snap_", ".db")
+    try:
+        db.snapshot_to(snap)
+        with zipfile.ZipFile(str(tmp), "w", zipfile.ZIP_DEFLATED) as z:
+            z.write(str(snap), "data/" + db_name)
+            for path in sorted(base.rglob("*")):
+                if not path.is_file():
+                    continue
+                rel = path.relative_to(base).as_posix()
+                if rel.split("/")[0].startswith("_backup"):
+                    continue
+                if path.name in skip_names:
+                    continue
+                compress = (zipfile.ZIP_STORED
+                            if path.suffix.lower() in _STORE_EXTS
+                            else zipfile.ZIP_DEFLATED)
+                z.write(str(path), "data/" + rel, compress_type=compress)
+    except Exception:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+    finally:
+        try:
+            snap.unlink()
+        except OSError:
+            pass
+    filename = "试卷批改系统备份_%s.zip" % datetime.now().strftime("%Y%m%d_%H%M")
+    return FileResponse(None, "application/zip", filename,
+                        path=tmp, cleanup=True)
 
 
 # --------------------------------------------------------------------------

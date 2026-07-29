@@ -171,6 +171,20 @@ def init() -> None:
     conn.commit()
 
 
+def snapshot_to(path) -> None:
+    """把当前数据库完整快照到 path。
+
+    库开着 WAL，直接拷 .db 文件可能拷到写了一半的；
+    SQLite 自带的在线备份接口（3.7 就有）能在使用中拿到一致副本。
+    """
+    dest = sqlite3.connect(str(path))
+    try:
+        connect().backup(dest)
+        dest.commit()
+    finally:
+        dest.close()
+
+
 def query(sql: str, args=()) -> list:
     cur = connect().execute(sql, args)
     rows = cur.fetchall()

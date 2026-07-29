@@ -155,6 +155,7 @@ function renderTable(table) {
 $('#dl-xlsx').href = '/api/exams/' + EXAM_ID + '/export/scores.xlsx';
 $('#dl-csv').href = '/api/exams/' + EXAM_ID + '/export/scores.csv';
 $('#dl-wrong').href = '/api/exams/' + EXAM_ID + '/export/wrong.xlsx';
+$('#dl-marked').href = '/api/exams/' + EXAM_ID + '/export/marked.zip';
 
 API.get('/api/exams/' + EXAM_ID + '/report').then(function (rep) {
   var exam = rep.table.exam;

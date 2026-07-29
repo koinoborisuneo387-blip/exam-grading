@@ -153,7 +153,31 @@ class Handler(BaseHTTPRequestHandler):
             extra["Cache-Control"] = "private, max-age=%d" % resp.max_age
         else:
             extra["Cache-Control"] = "no-store"
-        self._send(200, resp.data, resp.content_type, extra)
+        if resp.path is None:
+            self._send(200, resp.data, resp.content_type, extra)
+            return
+        # 大文件（备份包、全班批注卷）从磁盘分块发，不整块读进内存
+        try:
+            size = resp.path.stat().st_size
+            self.send_response(200)
+            self.send_header("Content-Type", resp.content_type)
+            self.send_header("Content-Length", str(size))
+            for key, value in extra.items():
+                self.send_header(key, value)
+            self.end_headers()
+            if self.command != "HEAD":
+                with resp.path.open("rb") as fh:
+                    while True:
+                        chunk = fh.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+        finally:
+            if resp.cleanup:
+                try:
+                    resp.path.unlink()
+                except OSError:
+                    pass
 
     def _serve_static(self, path):
         if path in ("/", ""):
